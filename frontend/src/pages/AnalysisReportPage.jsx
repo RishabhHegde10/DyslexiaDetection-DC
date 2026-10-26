@@ -38,9 +38,9 @@ function getExplanations(data, probability) {
 
   explanations.push({
     icon: "🤖",
-    title: probability >= 0.7 ? "AI Model: High Risk Detected" : probability >= 0.4 ? "AI Model: Moderate Risk" : "AI Model: Low Risk",
-    body: `The ML model predicts a ${(probability * 100).toFixed(1)}% probability of learning difficulty.`,
-    severity: probability >= 0.7 ? "high" : probability >= 0.4 ? "medium" : "low",
+    title: probability >= 0.65 ? "AI Model: High Risk Detected" : probability >= 0.38 ? "AI Model: Moderate Risk" : "AI Model: Low Risk",
+    body: `The multi-modal AI assessment predicts a ${(probability * 100).toFixed(1)}% probability of learning difficulty based on combined assessment telemetry.`,
+    severity: probability >= 0.65 ? "high" : probability >= 0.38 ? "medium" : "low",
   });
 
   if (wpm > 0 && wpm < 20)   explanations.push({ icon: "⌨️", title: "Low Typing Speed",         body: `${Math.round(wpm)} WPM — below the expected benchmark for this age group.`,                severity: "medium" });
@@ -93,9 +93,46 @@ export default function AnalysisReportPage({ data = {}, ageGroup, setPage, user 
       try {
         const result = await sendPrediction(payload);
         if (!cancelled) {
-          const prob  = safeNum(result.probability, 0);
-          const level = result.risk_level || (prob >= 0.7 ? "high" : prob >= 0.4 ? "medium" : "low");
-          setProbability(prob);
+          const mlProb = safeNum(result.probability, 0);
+
+          // Multi-modal composite risk calculation:
+          // Combines ML typing motor telemetry with Cognitive & Reading performance
+          const cognitiveVal = data.cognitive_score != null ? safeNum(data.cognitive_score) : null;
+          const readingVal   = data.reading_score   != null ? safeNum(data.reading_score)   : null;
+          const errorsVal    = safeNum(data.errors, 0);
+
+          let finalProb = mlProb;
+
+          if (cognitiveVal !== null || readingVal !== null || errorsVal > 10) {
+            const cognitiveRisk = cognitiveVal !== null ? Math.max(0, Math.min(1, 1 - cognitiveVal / 100)) : null;
+            const readingRisk   = readingVal   !== null ? Math.max(0, Math.min(1, 1 - readingVal / 100))   : null;
+            const errorRisk     = Math.min(1, errorsVal / 25);
+
+            const components = [];
+            const weights = [];
+
+            // 1. ML Typing Motor Telemetry + Typing Error Risk
+            components.push(Math.max(mlProb, errorRisk * 0.75));
+            weights.push(0.40);
+
+            // 2. Cognitive Deficit Risk
+            if (cognitiveRisk !== null) {
+              components.push(cognitiveRisk);
+              weights.push(0.40);
+            }
+
+            // 3. Reading Comprehension Deficit Risk
+            if (readingRisk !== null) {
+              components.push(readingRisk);
+              weights.push(0.20);
+            }
+
+            const totalWeight = weights.reduce((a, b) => a + b, 0);
+            finalProb = components.reduce((sum, val, idx) => sum + val * weights[idx], 0) / totalWeight;
+          }
+
+          const level = finalProb >= 0.65 ? "high" : finalProb >= 0.38 ? "medium" : "low";
+          setProbability(finalProb);
           setRiskLevel(level);
           setMlSource("api");
         }
@@ -103,7 +140,7 @@ export default function AnalysisReportPage({ data = {}, ageGroup, setPage, user 
         // Flask offline — use local heuristic
         if (!cancelled) {
           const prob  = computeLocalProbability(data);
-          const level = prob >= 0.7 ? "high" : prob >= 0.4 ? "medium" : "low";
+          const level = prob >= 0.65 ? "high" : prob >= 0.38 ? "medium" : "low";
           setProbability(prob);
           setRiskLevel(level);
           setMlSource("local");
