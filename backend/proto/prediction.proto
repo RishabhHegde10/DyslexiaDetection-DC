@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package prediction;
+
+service PredictionService {
+  rpc Predict (PredictionRequest) returns (PredictionResponse);
+}
+
+message PredictionRequest {
+  float typing_accuracy = 1;
+  float reading_score = 2;
+  float cognitive_score = 3;
+  float spelling_score = 4;
+  int32 lamport_timestamp = 5;
+}
+
+message PredictionResponse {
+  string prediction = 1;
+  float confidence = 2;
+  int32 lamport_timestamp = 3;
+}
+
+service MutexService {
+    rpc RequestAccess (AccessRequest) returns (AccessReply);
+}
+
+message AccessRequest {
+    int32 node_id = 1;
+    int32 timestamp = 2;
+}
+
+message AccessReply {
+    int32 node_id = 1;
+    int32 timestamp = 2;
+}
+
+service LoadBalancedPredictionService {
+    rpc HandlePrediction (PredictionRequest) returns (PredictionResponse);
+}

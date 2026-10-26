@@ -1,0 +1,80 @@
+syntax = "proto3";
+package dfs;
+
+service MetadataService {
+    rpc Heartbeat (HeartbeatReq) returns (HeartbeatRes);
+    rpc GetUploadPlan (UploadReq) returns (UploadPlan);
+    rpc CommitFile (CommitReq) returns (CommitRes);
+    rpc GetFilePlan (FileReq) returns (FilePlan);
+    rpc GetStatus (StatusReq) returns (StatusRes);
+    rpc GetRepairPlan (RepairReq) returns (RepairPlan);
+    rpc RegisterRepair (RegisterRepairReq) returns (CommitRes);
+}
+
+service StorageService {
+    rpc StoreChunk (StoreReq) returns (StoreRes);
+    rpc GetChunk (GetChunkReq) returns (GetChunkRes);
+}
+
+message HeartbeatReq { string node_id = 1; int32 lamport_clock = 2; }
+message HeartbeatRes { bool success = 1; }
+
+message UploadReq { string filename = 1; int32 num_chunks = 2; }
+message UploadPlan {
+    bool success = 1;
+    string error_message = 2;
+    map<int32, NodeList> chunk_allocations = 3;
+}
+message NodeList { repeated string nodes = 1; }
+
+message CommitReq {
+    string filename = 1;
+    map<int32, ChunkMeta> chunks = 2;
+}
+message ChunkMeta {
+    repeated string nodes = 1;
+    string checksum = 2;
+}
+message CommitRes { bool success = 1; }
+
+message FileReq { string filename = 1; }
+message FilePlan {
+    bool success = 1;
+    int32 num_chunks = 2;
+    map<int32, ChunkMeta> chunks = 3;
+}
+
+message StatusReq {}
+message StatusRes { string status_json = 1; }
+
+message RepairReq {}
+message RepairPlan {
+    map<string, RepairTask> tasks = 1;
+}
+message RepairTask {
+    string filename = 1;
+    int32 chunk_index = 2;
+    string source_node = 3;
+    string target_node = 4;
+    string checksum = 5;
+}
+
+message RegisterRepairReq {
+    string filename = 1;
+    int32 chunk_index = 2;
+    string new_node = 3;
+}
+
+message StoreReq {
+    string chunk_id = 1;
+    bytes data = 2;
+    string checksum = 3;
+}
+message StoreRes { bool success = 1; }
+
+message GetChunkReq { string chunk_id = 1; }
+message GetChunkRes {
+    bool success = 1;
+    bytes data = 2;
+    string checksum = 3;
+}

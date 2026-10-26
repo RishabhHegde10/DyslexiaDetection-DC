@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prediction-worker
+  labels:
+    app: prediction-worker
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: prediction-worker
+  template:
+    metadata:
+      labels:
+        app: prediction-worker
+    spec:
+      containers:
+      - name: worker
+        image: myapp-backend:latest
+        imagePullPolicy: Never
+        command: ["python", "k8s_prediction_server.py"]
+        ports:
+        - containerPort: 50051
