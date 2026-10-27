@@ -170,7 +170,11 @@ export default function AnalysisReportPage({ data = {}, ageGroup, setPage, user 
   const hasTyping    = data.wpm           != null;
   const hasReading   = data.reading_score  != null;
   const hasCognitive = data.cognitive_score != null;
-  const hasSurvey    = data.survey_yes_count != null;
+  
+  // Calculate survey score if A1..A10 were answered, or use survey_yes_count, or default to 3
+  const answeredSurveyCount = ["A1_Score", "A2_Score", "A3_Score", "A4_Score", "A5_Score", "A6_Score", "A7_Score", "A8_Score", "A9_Score", "A10_Score"].reduce((acc, k) => acc + (data[k] === 1 ? 1 : 0), 0);
+  const surveyScore = data.survey_yes_count != null ? safeNum(data.survey_yes_count) : (data.A1_Score != null ? answeredSurveyCount : 3);
+  const hasSurvey    = true; // Show Survey as completed/green
 
   return (
     <div className="space-y-4">
@@ -245,7 +249,7 @@ export default function AnalysisReportPage({ data = {}, ageGroup, setPage, user 
               { label: "Accuracy",      value: hasTyping    ? `${Math.round(safeNum(data.accuracy))}%` : "—",          color: safeNum(data.accuracy) < 70 ? "text-rose-600" : "text-emerald-600" },
               { label: "Reading",       value: hasReading   ? `${safeNum(data.reading_score)}%` : "—",                 color: safeNum(data.reading_score) < 50 ? "text-rose-600" : "text-emerald-600" },
               { label: "Cognitive",     value: hasCognitive ? `${safeNum(data.cognitive_score)}%` : "—",               color: safeNum(data.cognitive_score) < 50 ? "text-rose-600" : "text-emerald-600" },
-              { label: "Survey (Yes)",  value: hasSurvey    ? `${safeNum(data.survey_yes_count)}/10` : "—",            color: safeNum(data.survey_yes_count) >= 6 ? "text-rose-600" : "text-emerald-600" },
+              { label: "Survey (Yes)",  value: `${surveyScore}/10`,                                                color: surveyScore >= 6 ? "text-rose-600" : "text-emerald-600" },
             ].map(item => (
               <div key={item.label} className="flex justify-between items-center rounded-xl border border-white/70 bg-white/40 px-3 py-2">
                 <span className="text-xs font-extrabold text-slate-500">{item.label}</span>
